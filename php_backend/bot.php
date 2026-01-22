@@ -140,7 +140,8 @@ function get_undelivered_messages_for_output(): array {
             $out[] = [
                 'name' => $name,
                 'date' => date('d.m H:i', $ts), // required format d.m H:i
-                'msg' => $m['text'] ?? ''
+                'msg' => $m['text'] ?? '',
+                'chat_id' => $m['chat_id'] ?? '',
             ];
             $indexes[] = $i;
         }
