@@ -84,27 +84,27 @@ function write_json_file(string $path, $data): bool {
 }
 
 // Append message to storage (thread-safe)
-function store_message(array $msg) {
-    $messages = read_json_file(MESSAGES_FILE, []);
+function store_message(array $msg, $path = MESSAGES_FILE) {
+    $messages = read_json_file($path, []);
     $messages[] = $msg;
-    return write_json_file(MESSAGES_FILE, $messages);
+    return write_json_file($path, $messages);
 }
 
 // Mark messages as delivered by their internal ids (indexes)
-function mark_messages_delivered(array $indexes) {
-    $messages = read_json_file(MESSAGES_FILE, []);
+function mark_messages_delivered(array $indexes, $path = MESSAGES_FILE) {
+    $messages = read_json_file($path, []);
     foreach ($indexes as $i) {
         if (isset($messages[$i])) {
             $messages[$i]['delivered'] = true;
             $messages[$i]['delivered_at'] = time();
         }
     }
-    return write_json_file(MESSAGES_FILE, $messages);
+    return write_json_file($path, $messages);
 }
 
 // Mark ALL messages as delivered (protected admin operation)
-function mark_all_messages_delivered(): bool {
-    $messages = read_json_file(MESSAGES_FILE, []);
+function mark_all_messages_delivered($path = MESSAGES_FILE): bool {
+    $messages = read_json_file($path, []);
     $now = time();
     foreach ($messages as &$m) {
         $m['delivered'] = true;
@@ -113,20 +113,20 @@ function mark_all_messages_delivered(): bool {
         }
     }
     unset($m);
-    return write_json_file(MESSAGES_FILE, $messages);
+    return write_json_file($path, $messages);
 }
 
 // Delete messages file completely (admin operation)
-function delete_messages_file(): bool {
-    if (!file_exists(MESSAGES_FILE)) {
+function delete_messages_file($path = MESSAGES_FILE): bool {
+    if (!file_exists($path)) {
         return true; // already deleted
     }
-    return unlink(MESSAGES_FILE);
+    return unlink($path);
 }
 
 // Prepare messages for external consumption and return their indexes
-function get_undelivered_messages_for_output(): array {
-    $messages = read_json_file(MESSAGES_FILE, []);
+function get_undelivered_messages_for_output($path = MESSAGES_FILE): array {
+    $messages = read_json_file($path, []);
     $out = [];
     $indexes = [];
     foreach ($messages as $i => $m) {
@@ -227,7 +227,7 @@ function handle_telegram_update(array $update) {
 }
 
 // Protected endpoint: get undelivered messages and mark them delivered
-function endpoint_get_messages() {
+function endpoint_get_messages($path = MESSAGES_FILE) {
     header('Content-Type: application/json; charset=utf-8');
     $token = $_GET['token'] ?? '';
     if (!hash_equals(EXTERNAL_ACCESS_TOKEN, $token)) {
@@ -242,10 +242,10 @@ function endpoint_get_messages() {
         exit;
     }
 
-    $res = get_undelivered_messages_for_output();
+    $res = get_undelivered_messages_for_output($path);
     // mark as delivered by indexes
     if (!empty($res['indexes'])) {
-        mark_messages_delivered($res['indexes']);
+        mark_messages_delivered($res['indexes'], $path);
     }
     echo json_encode(['messages' => $res['messages']]);
     exit;
@@ -280,7 +280,20 @@ function endpoint_send_message() {
         'text' => $data['msg']
     ];
     // Basic options: parse_mode can be added, etc.
-    $result = telegram_api_request('sendMessage', $params);
+    if (SEND_TO_TG_THROUGH_EXTERNAL_POLL){
+        // обработчик для хранения предназначенных для tg сообщений
+        // нужно хранить только text, chat_id, опционально - дату получения
+
+        // добавим дату
+        $params['date'] = date('d-m-Y H:i:s');
+
+        // отправим на сохранение
+        $ok = store_message($params, SEND_TO_TG_THROUGH_EXTERNAL_POLL_MESSAGES_FILE);
+        $result = ['ok' => true];
+    } else {
+        $result = telegram_api_request('sendMessage', $params);
+    }
+    
     echo json_encode($result);
     exit;
 }
@@ -323,7 +336,7 @@ function endpoint_mark_all_delivered() {
 }
 
 // Protected admin endpoint: delete messages file
-function endpoint_delete_messages() {
+function endpoint_delete_messages($path = MESSAGES_FILE) {
     header('Content-Type: application/json; charset=utf-8');
     $token = $_GET['token'] ?? '';
     if (!hash_equals(ADMIN_TOKEN, $token)) {
@@ -338,7 +351,7 @@ function endpoint_delete_messages() {
         exit;
     }
 
-    $ok = delete_messages_file();
+    $ok = delete_messages_file($path);
     echo json_encode(['ok' => $ok]);
     exit;
 }
@@ -380,6 +393,14 @@ if ($action === 'send_message') {
     endpoint_send_message();
 }
 
+if ($action === 'extpoll_get_messages') {
+    if (SEND_TO_TG_THROUGH_EXTERNAL_POLL){
+        endpoint_get_messages(SEND_TO_TG_THROUGH_EXTERNAL_POLL_MESSAGES_FILE);
+    } else {
+        echo json_encode("Sending to TG by poll is disabled");
+    }
+}
+
 if ($action === 'set_webhook') {
     endpoint_set_webhook();
 }
@@ -390,6 +411,14 @@ if ($action === 'mark_all_delivered') {
 
 if ($action === 'delete_messages') {
     endpoint_delete_messages();
+}
+
+if ($action === 'extpoll_delete_messages') {
+    if (SEND_TO_TG_THROUGH_EXTERNAL_POLL){
+        endpoint_delete_messages(SEND_TO_TG_THROUGH_EXTERNAL_POLL_MESSAGES_FILE);
+    } else {
+        echo json_encode("Sending to TG by poll is disabled");
+    }
 }
 
 // If this is a POST from Telegram (webhook), Telegram will POST JSON to this script
@@ -434,6 +463,8 @@ header('Content-Type: text/html; charset=utf-8');
 <li><strong>Вручную установить webhook (GET):</strong> <code>?action=set_webhook&token=YOUR_ADMIN_TOKEN</code></li>
 <li><strong>Пометить все сообщения доставленными (GET):</strong> <code>?action=mark_all_delivered&token=YOUR_ADMIN_TOKEN</code></li>
 <li><strong>Удалить файл сообщений (GET):</strong> <code>?action=delete_messages&token=YOUR_ADMIN_TOKEN</code></li>
+<li><strong>Получить сообщения для отправки в TG через внешний обработчик (GET):</strong> <code>?action=extpoll_get_messages&token=YOUR_TOKEN</code></li>
+<li><strong>Удалить файл сообщений для отправки в TG через внешний обработчик (GET):</strong> <code>?action=extpoll_delete_messages&token=YOUR_ADMIN_TOKEN</code></li>
 </ul>
 </body>
 </html>

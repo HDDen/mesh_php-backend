@@ -9,6 +9,14 @@
 // Bot API token (from @BotFather)
 const BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN_HERE';
 
+// Directory for storing data files (relative to this script). Make writable by the web server.
+const DATA_DIR = __DIR__ . '/data';
+
+// If using Telethon, in py-script you be abble to load msgs to TG from polling. It disables sending updates to TG through bot
+const SEND_TO_TG_THROUGH_EXTERNAL_POLL = false;
+// Path to file that stores messages FOR EXTERNAL POLLING JSON
+const SEND_TO_TG_THROUGH_EXTERNAL_POLL_MESSAGES_FILE = DATA_DIR . '/externalpoll_to_tg.json.php';
+
 // Secret token to receive messages from telegram.
 const TG_SUBSCRIBE_TOKEN = 'anyrandomstring';
 
@@ -18,9 +26,6 @@ define('BOT_WEBHOOK_URL', 'https://'.$_SERVER["HTTP_HOST"].'/telegram/meshTgBot/
 
 // Secret token that external clients must provide when calling protected endpoints.
 const EXTERNAL_ACCESS_TOKEN = 'CHANGE_THIS_TO_A_STRONG_TOKEN';
-
-// Directory for storing data files (relative to this script). Make writable by the web server.
-const DATA_DIR = __DIR__ . '/data';
 
 // Path to file that stores messages JSON
 const MESSAGES_FILE = DATA_DIR . '/messages.json.php';

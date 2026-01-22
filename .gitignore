@@ -1,2 +1,3 @@
 php_backend/config.php
+data/*
 .vscode/launch.json
