@@ -131,6 +131,15 @@ function get_undelivered_messages_for_output($path = MESSAGES_FILE): array {
     $indexes = [];
     foreach ($messages as $i => $m) {
         if (!isset($m['delivered']) || $m['delivered'] !== true) {
+
+            // проверка на соответствие chat_id переданному в get, если он есть
+            $message_chat_id = !empty($m['chat_id']) ? $m['chat_id'] : '';
+            $requested_chat_id = !empty($_GET['chat_id']) ? $_GET['chat_id'] : '';
+            if ($requested_chat_id and $requested_chat_id != $message_chat_id){
+                continue;
+            }
+
+            // продолжаем работу в штатном режиме
             $name = $m['username'] ?? null;
             if (empty($name)) {
                 $nameParts = array_filter([$m['first_name'] ?? null, $m['last_name'] ?? null]);
@@ -458,7 +467,7 @@ header('Content-Type: text/html; charset=utf-8');
 <p>Этот скрипт обслуживает webhook Telegram и внешние защищённые эндпоинты.</p>
 <ul>
 <li><strong>Webhook URL (для BotFather):</strong> <?php echo htmlspecialchars(BOT_WEBHOOK_URL).'TG_SUBSCRIBE_TOKEN'; ?></li>
-<li><strong>Получить неотданные сообщения (GET):</strong> <code>?action=get_messages&token=YOUR_TOKEN</code></li>
+<li><strong>Получить неотданные сообщения (GET):</strong> <code>?action=get_messages&chat_id=...&token=YOUR_TOKEN</code></li>
 <li><strong>Отправить сообщение (POST JSON):</strong> <code>?action=send_message&token=YOUR_TOKEN</code></li>
 <li><strong>Вручную установить webhook (GET):</strong> <code>?action=set_webhook&token=YOUR_ADMIN_TOKEN</code></li>
 <li><strong>Пометить все сообщения доставленными (GET):</strong> <code>?action=mark_all_delivered&token=YOUR_ADMIN_TOKEN</code></li>
