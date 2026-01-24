@@ -16,7 +16,7 @@
  * curl -X POST "https://api.telegram.org/bot<ВАШ_BOT_TOKEN>/setWebhook" -d "url=https://example.ru/telegram/meshTgBot/bot.php?token=TG_SUBSCRIBE_TOKEN"
  * 
  * Или создать задание в cron для подписки каждые n минут
- * curl https://example.ru/telegram/meshTgBot/bot.php?action=set_webhook&token=ADMIN_TOKEN
+ * curl -X POST -H "Content-Type: application/json" -d '{"token": ADMIN_TOKEN}' https://example.ru/telegram/meshTgBot/bot.php?action=set_webhook
  */
 
 // Immediately require configuration
@@ -238,8 +238,7 @@ function handle_telegram_update(array $update) {
 // Protected endpoint: get undelivered messages and mark them delivered
 function endpoint_get_messages($path = MESSAGES_FILE) {
     header('Content-Type: application/json; charset=utf-8');
-    $token = $_GET['token'] ?? '';
-    if (!hash_equals(EXTERNAL_ACCESS_TOKEN, $token)) {
+    if (!check_post_token(EXTERNAL_ACCESS_TOKEN)){
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         exit;
@@ -263,8 +262,7 @@ function endpoint_get_messages($path = MESSAGES_FILE) {
 // Protected endpoint: accept JSON POST {msg, channel_id} and send via Telegram
 function endpoint_send_message() {
     header('Content-Type: application/json; charset=utf-8');
-    $token = $_GET['token'] ?? '';
-    if (!hash_equals(EXTERNAL_ACCESS_TOKEN, $token)) {
+    if (!check_post_token(EXTERNAL_ACCESS_TOKEN)){
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         exit;
@@ -309,8 +307,7 @@ function endpoint_send_message() {
 
 // Optional endpoint: manual webhook set
 function endpoint_set_webhook() {
-    $token = $_GET['token'] ?? '';
-    if (!hash_equals(ADMIN_TOKEN, $token)) {
+    if (!check_post_token(ADMIN_TOKEN)){
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         exit;
@@ -326,8 +323,7 @@ function endpoint_set_webhook() {
 // Protected admin endpoint: mark all messages as delivered
 function endpoint_mark_all_delivered() {
     header('Content-Type: application/json; charset=utf-8');
-    $token = $_GET['token'] ?? '';
-    if (!hash_equals(ADMIN_TOKEN, $token)) {
+    if (!check_post_token(ADMIN_TOKEN)){
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         exit;
@@ -347,8 +343,7 @@ function endpoint_mark_all_delivered() {
 // Protected admin endpoint: delete messages file
 function endpoint_delete_messages($path = MESSAGES_FILE) {
     header('Content-Type: application/json; charset=utf-8');
-    $token = $_GET['token'] ?? '';
-    if (!hash_equals(ADMIN_TOKEN, $token)) {
+    if (!check_post_token(ADMIN_TOKEN)){
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         exit;
@@ -380,6 +375,26 @@ function is_allowed_by_ip(){
                 $result = false; // удалось прочесть, но в списке нет
             }
         }
+    }
+
+    return $result;
+}
+
+/**
+ * Сверяет переданный в функцию токен с полученным в POST json
+ */
+function check_post_token($ethalon_token){
+    $result = false;
+
+    $method = !empty($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
+    $rawInput = file_get_contents('php://input');
+    if ($method === 'POST' && !empty($rawInput['token'])) {
+        $token = $rawInput['token'];
+        if (hash_equals($ethalon_token, $token)) {
+            $result = true;
+        }
+    } else {
+        $result = false;
     }
 
     return $result;
@@ -435,7 +450,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $rawInput = file_get_contents('php://input');
 if ($method === 'POST' && !empty($rawInput)) {
     $token = $_GET['token'] ?? '';
-    if (hash_equals(TG_SUBSCRIBE_TOKEN, $token)) {
+    if (hash_equals(TG_SUBSCRIBE_TOKEN, $token) || check_post_token(TG_SUBSCRIBE_TOKEN)) {
         // Try to decode as JSON — Telegram sends JSON updates
         $update = json_decode($rawInput, true);
         if (is_array($update)) {
