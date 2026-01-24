@@ -6,9 +6,9 @@
 // This is the only runtime file required (besides config.php). Drop both files into the same folder.
 // It exposes several endpoints through the single entry point (this file):
 // - Telegram webhook (configured to BOT_WEBHOOK_URL) — receives updates and stores messages
-// - External fetch endpoint: ?action=get_messages&token=... (returns undelivered messages and marks them sent)
-// - External send endpoint: ?action=send_message&token=... (POST JSON: {"msg":"...","channel_id":"..."})
-// - Optional manual webhook re-set: ?action=set_webhook&token=...
+// - External fetch endpoint: ?action=get_messages (returns undelivered messages and marks them sent)
+// - External send endpoint: ?action=send_message (POST JSON: {"msg":"...","channel_id":"..."})
+// - Optional manual webhook re-set: ?action=set_webhook
 //
 // Storage format: JSON files in DATA_DIR. All reads/writes use file locks and atomic writes.
 /**
@@ -134,8 +134,9 @@ function get_undelivered_messages_for_output($path = MESSAGES_FILE): array {
 
             // проверка на соответствие chat_id переданному в get, если он есть
             $message_chat_id = !empty($m['chat_id']) ? $m['chat_id'] : '';
-            $requested_chat_id = !empty($_GET['chat_id']) ? $_GET['chat_id'] : '';
-            if ($requested_chat_id and $requested_chat_id != $message_chat_id){
+            $requested_chat_id = get_chatid_from_post();
+
+            if ($requested_chat_id && ($requested_chat_id != $message_chat_id) ){
                 continue;
             }
 
@@ -388,11 +389,38 @@ function check_post_token($ethalon_token){
 
     $method = !empty($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
     $rawInput = file_get_contents('php://input');
-    if ($method === 'POST' && !empty($rawInput['token'])) {
-        $token = $rawInput['token'];
+    try {
+        $input_json = json_decode($rawInput, true);
+    } catch (\Throwable $th) {
+        $input_json = [];
+    }
+    if ($method === 'POST' && !empty($input_json['token'])) {
+        $token = $input_json['token'];
         if (hash_equals($ethalon_token, $token)) {
             $result = true;
         }
+    } else {
+        $result = false;
+    }
+
+    return $result;
+}
+
+/**
+ * Пытается извлечь chat_id из POST json
+ */
+function get_chatid_from_post(){
+    $result = false;
+
+    $method = !empty($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
+    $rawInput = file_get_contents('php://input');
+    try {
+        $input_json = json_decode($rawInput, true);
+    } catch (\Throwable $th) {
+        $input_json = [];
+    }
+    if ($method === 'POST' && !empty($input_json['chat_id'])) {
+        $result = $input_json['chat_id'];
     } else {
         $result = false;
     }
@@ -482,13 +510,13 @@ header('Content-Type: text/html; charset=utf-8');
 <p>Этот скрипт обслуживает webhook Telegram и внешние защищённые эндпоинты.</p>
 <ul>
 <li><strong>Webhook URL (для BotFather):</strong> <?php echo htmlspecialchars(BOT_WEBHOOK_URL).'TG_SUBSCRIBE_TOKEN'; ?></li>
-<li><strong>Получить неотданные сообщения (GET):</strong> <code>?action=get_messages&chat_id=...&token=YOUR_TOKEN</code></li>
-<li><strong>Отправить сообщение (POST JSON):</strong> <code>?action=send_message&token=YOUR_TOKEN</code></li>
-<li><strong>Вручную установить webhook (GET):</strong> <code>?action=set_webhook&token=YOUR_ADMIN_TOKEN</code></li>
-<li><strong>Пометить все сообщения доставленными (GET):</strong> <code>?action=mark_all_delivered&token=YOUR_ADMIN_TOKEN</code></li>
-<li><strong>Удалить файл сообщений (GET):</strong> <code>?action=delete_messages&token=YOUR_ADMIN_TOKEN</code></li>
-<li><strong>Получить сообщения для отправки в TG через внешний обработчик (GET):</strong> <code>?action=extpoll_get_messages&token=YOUR_TOKEN</code></li>
-<li><strong>Удалить файл сообщений для отправки в TG через внешний обработчик (GET):</strong> <code>?action=extpoll_delete_messages&token=YOUR_ADMIN_TOKEN</code></li>
+<li><strong>Получить неотданные сообщения (POST):</strong> <code>?action=get_messages&chat_id=... + {token=YOUR_TOKEN}</code></li>
+<li><strong>Отправить сообщение (POST JSON):</strong> <code>?action=send_message + {token=YOUR_TOKEN}</code></li>
+<li><strong>Вручную установить webhook (POST):</strong> <code>?action=set_webhook + {token=YOUR_ADMIN_TOKEN}</code></li>
+<li><strong>Пометить все сообщения доставленными (POST):</strong> <code>?action=mark_all_delivered + {token=YOUR_ADMIN_TOKEN}</code></li>
+<li><strong>Удалить файл сообщений (POST):</strong> <code>?action=delete_messages + {token=YOUR_ADMIN_TOKEN}</code></li>
+<li><strong>Получить сообщения для отправки в TG через внешний обработчик (POST):</strong> <code>?action=extpoll_get_messages + {token=YOUR_TOKEN}</code></li>
+<li><strong>Удалить файл сообщений для отправки в TG через внешний обработчик (POST):</strong> <code>?action=extpoll_delete_messages + {token=YOUR_ADMIN_TOKEN}</code></li>
 </ul>
 </body>
 </html>
