@@ -30,6 +30,9 @@ const SEND_TO_TG_THROUGH_EXTERNAL_POLL_MESSAGES_FILE = DATA_DIR . '/externalpoll
 // Example: 'https://example.com/bot.php'
 define('BOT_WEBHOOK_URL', 'https://'.$_SERVER["HTTP_HOST"].'/telegram/meshTgBot/bot.php?token=');
 
+// Are we need to autoset webhook on each incoming request?
+define('REFRESH_WEBHOOK_ON_EACH_REQUEST', true);
+
 // Path to file that stores messages JSON
 const MESSAGES_FILE = DATA_DIR . '/messages.json.php';
 

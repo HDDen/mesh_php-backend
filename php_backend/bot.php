@@ -432,9 +432,10 @@ function get_chatid_from_post(){
 $action = $_GET['action'] ?? null;
 
 // Always attempt to ensure webhook is set no more frequently than WEBHOOK_INTERVAL.
-// This satisfies requirement 1: "раз в 30 минут обращаться к telegram и подписывать себя на вебхук"
 // We perform this check on every request to the script (webhook hits from Telegram themselves, or external calls).
-$webhookEnsureResult = ensure_webhook_recent();
+if (REFRESH_WEBHOOK_ON_EACH_REQUEST){
+    $webhookEnsureResult = ensure_webhook_recent();
+}
 // (We do not expose it to the client unless needed)
 
 if ($action === 'get_messages') {
