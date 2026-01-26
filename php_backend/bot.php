@@ -13,10 +13,10 @@
 // Storage format: JSON files in DATA_DIR. All reads/writes use file locks and atomic writes.
 /**
  * Можно вручную установить вебхук:
- * curl -X POST "https://api.telegram.org/bot<ВАШ_BOT_TOKEN>/setWebhook" -d "url=https://example.ru/telegram/meshTgBot/bot.php?token=TG_SUBSCRIBE_TOKEN"
+ * curl -X POST "https://api.telegram.org/bot<ВАШ_BOT_TOKEN>/setWebhook" -d "url=https://example.ru/mesh_php-backend/php_backend/bot.php?token=TG_SUBSCRIBE_TOKEN"
  * 
  * Или создать задание в cron для подписки каждые n минут
- * curl -X POST -H "Content-Type: application/json" -d '{"token": ADMIN_TOKEN}' https://example.ru/telegram/meshTgBot/bot.php?action=set_webhook
+ * curl -X POST -H "Content-Type: application/json" -d '{"token": ADMIN_TOKEN}' https://example.ru/mesh_php-backend/php_backend/bot.php?action=set_webhook
  */
 
 // Immediately require configuration
@@ -428,6 +428,20 @@ function get_chatid_from_post(){
     return $result;
 }
 
+/**
+ * Узнает, работает сервер по http или https
+ */
+function get_protocol() {
+    $is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443;
+    
+    // Check for load balancer/proxy header (e.g., AWS ELB, Nginx proxy)
+    if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+        $is_https = true;
+    }
+
+    return $is_https ? "https" : "http";
+}
+
 // Router: determine action based on query param or incoming webhook
 $action = $_GET['action'] ?? null;
 
@@ -502,22 +516,24 @@ header('Content-Type: text/html; charset=utf-8');
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<title>Telegram bot backend</title>
-<style>body{font-family:Arial,Helvetica,sans-serif;line-height:1.5;padding:20px;color:#222}</style>
+    <meta charset="utf-8">
+    <meta name="robots" content="noindex, nofollow"/>
+    <title>Tg backend</title>
+    <style>body{font-family:Arial,Helvetica,sans-serif;line-height:1.5;padding:20px;color:#222}</style>
 </head>
 <body>
-<h2>Telegram bot backend</h2>
-<p>Этот скрипт обслуживает webhook Telegram и внешние защищённые эндпоинты.</p>
-<ul>
-<li><strong>Webhook URL (для BotFather):</strong> <?php echo htmlspecialchars(BOT_WEBHOOK_URL).'TG_SUBSCRIBE_TOKEN'; ?></li>
-<li><strong>Получить неотданные сообщения (POST):</strong> <code>?action=get_messages&chat_id=... + {token=YOUR_TOKEN}</code></li>
-<li><strong>Отправить сообщение (POST JSON):</strong> <code>?action=send_message + {token=YOUR_TOKEN}</code></li>
-<li><strong>Вручную установить webhook (POST):</strong> <code>?action=set_webhook + {token=YOUR_ADMIN_TOKEN}</code></li>
-<li><strong>Пометить все сообщения доставленными (POST):</strong> <code>?action=mark_all_delivered + {token=YOUR_ADMIN_TOKEN}</code></li>
-<li><strong>Удалить файл сообщений (POST):</strong> <code>?action=delete_messages + {token=YOUR_ADMIN_TOKEN}</code></li>
-<li><strong>Получить сообщения для отправки в TG через внешний обработчик (POST):</strong> <code>?action=extpoll_get_messages + {token=YOUR_TOKEN}</code></li>
-<li><strong>Удалить файл сообщений для отправки в TG через внешний обработчик (POST):</strong> <code>?action=extpoll_delete_messages + {token=YOUR_ADMIN_TOKEN}</code></li>
-</ul>
+    <h1>Tg backend</h1>
+    <p>Этот скрипт обслуживает webhook Telegram и внешние эндпоинты.</p>
+    <ul>
+        <li><strong>Webhook URL для получения обновлений от Telegram, в случае работы через бота (необходимо доступное извне размещение + валидный SSL-сертификат!):</strong> <br><code><?php echo htmlspecialchars(BOT_WEBHOOK_URL).'TG_SUBSCRIBE_TOKEN'; ?></code></li>
+        <li><strong>Webhook URL для получения обновлений от пользовательского скрипта (POST):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?> + {token=TG_SUBSCRIBE_TOKEN}</code></li>
+        <li><strong>Получить свежие сообщения из Telegram (POST):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?>?action=get_messages + {token=YOUR_TOKEN}</code></li>
+        <li><strong>Отправить сообщение в Telegram (POST JSON):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?>?action=send_message + {token=YOUR_TOKEN}</code></li>
+        <li><strong>Вручную установить webhook (POST):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?>?action=set_webhook + {token=YOUR_ADMIN_TOKEN}</code></li>
+        <li><strong>Получить сообщения для отправки в TG через внешний обработчик (POST):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?>?action=extpoll_get_messages + {token=YOUR_TOKEN}</code><br>&nbsp;</li>
+        <li><strong>Служебное: пометить все сообщения от Telegram доставленными (POST):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?>?action=mark_all_delivered + {token=YOUR_ADMIN_TOKEN}</code></li>
+        <li><strong>Служебное: удалить файл сообщений от Telegram (POST):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?>?action=delete_messages + {token=YOUR_ADMIN_TOKEN}</code></li>
+        <li><strong>Служебное: удалить файл сообщений для отправки в TG через внешний обработчик (POST):</strong> <br><code><?=get_protocol()."://".$_SERVER['HTTP_HOST'].strtok($_SERVER['REQUEST_URI'], "?");?>?action=extpoll_delete_messages + {token=YOUR_ADMIN_TOKEN}</code></li>
+    </ul>
 </body>
 </html>

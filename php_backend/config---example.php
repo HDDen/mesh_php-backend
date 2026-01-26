@@ -28,7 +28,7 @@ const SEND_TO_TG_THROUGH_EXTERNAL_POLL_MESSAGES_FILE = DATA_DIR . '/externalpoll
 
 // Public URL that Telegram will call for updates (must be https unless using special Telegram options).
 // Example: 'https://example.com/bot.php'
-define('BOT_WEBHOOK_URL', 'https://'.$_SERVER["HTTP_HOST"].'/telegram/meshTgBot/bot.php?token=');
+define('BOT_WEBHOOK_URL', 'https://'.$_SERVER["HTTP_HOST"].strtok($_SERVER['REQUEST_URI'], "?").'?token=');
 
 // Are we need to autoset webhook on each incoming request?
 define('REFRESH_WEBHOOK_ON_EACH_REQUEST', true);
@@ -47,7 +47,7 @@ const APP_TIMEZONE = 'Europe/Moscow';
 
 // list of IP's for admin functionality
 define("ALLOWED_IP", [
-    '255.255.255.255',
+    //'255.255.255.255',
 ]);
 
 // ----------------------------
