@@ -9,7 +9,7 @@
 Скачать+залить или клонировать из консоли проект на сервер. Переименовать пример конфига в config.php.
 
 ```
-git clone HDDen/mesh_php-backend
+git clone https://github.com/HDDen/mesh_php-backend.git
 cd ./mesh_php-backend/php_backend
 mv config---example.php config.php
 nano config.php
