@@ -4,7 +4,7 @@
 
 Требуется PHP > 7.0. Сервер можно развернуть локально, используя любой привычный вебсервер - например, [Laragon 6 (laragon-wamp.exe)](https://github.com/leokhoa/laragon/releases/tag/6.0.0) (либо новее, если есть активная лицензия), или [OSPanel](https://ospanel.io/download/).
 
-Для локального использования рекомендуется использовать py-порт сервера, [HDDen/mesh_py-local-backend](https://github.com/HDDen/mesh_py-local-backend). Это позволит избежать доп. зависимости в виде локального php-сервера.
+Для локального использования рекомендуется использовать py-порт сервера, [HDDen/mesh_py-local-backend](https://github.com/HDDen/mesh_py-local-backend). Это позволит избежать доп. зависимости в виде локального php-сервера. Настройки py-версии идентичны этой.
 
 ## Quick start
 
