@@ -1,3 +1,5 @@
 php_backend/config.php
-data/*
+php_backend/data/*
+!php_backend/data/.htaccess
+!php_backend/data/index.html
 .vscode/launch.json
